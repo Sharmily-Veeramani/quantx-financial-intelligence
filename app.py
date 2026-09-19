@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
-
+from analysis.correlation import (
+    calculate_correlation,
+    calculate_rolling_correlation
+)
 from data.loader import load_asset
 from analysis.performance import calculate_daily_returns
 from analysis.risk import (
@@ -223,9 +226,91 @@ elif page == "Multi-Asset Analysis":
 
     st.header("📈 Multi-Asset Analysis")
 
-    st.info(
-        "Multi-asset analysis will be implemented in Part 29."
+    st.markdown(
+        """
+        Compare the historical behaviour of **Gold, Bitcoin,
+        and NVIDIA** using returns and correlation analysis.
+        """
     )
+
+    # ----------------------------------------------
+    # Create asset returns DataFrame
+    # ----------------------------------------------
+
+    asset_returns = pd.DataFrame({
+        "Gold": gold["Daily_Return"],
+        "Bitcoin": bitcoin["Daily_Return"],
+        "NVIDIA": nvidia["Daily_Return"]
+    }).dropna()
+
+    # ----------------------------------------------
+    # Cumulative returns
+    # ----------------------------------------------
+
+    st.subheader("Cumulative Returns")
+
+    cumulative_returns = (
+        1 + asset_returns
+    ).cumprod() - 1
+
+    st.line_chart(
+        cumulative_returns
+    )
+
+    # ----------------------------------------------
+    # Correlation matrix
+    # ----------------------------------------------
+
+    st.subheader("Correlation Matrix")
+
+    correlation_matrix = calculate_correlation(
+        asset_returns
+    )
+
+    st.dataframe(
+        correlation_matrix,
+        use_container_width=True
+    )
+
+    # ----------------------------------------------
+    # Rolling correlation
+    # ----------------------------------------------
+
+    st.subheader(
+        "20-Day Rolling Correlation"
+    )
+
+    selected_asset_1 = st.selectbox(
+        "First Asset",
+        ["Gold", "Bitcoin", "NVIDIA"],
+        key="rolling_asset_1"
+    )
+
+    selected_asset_2 = st.selectbox(
+        "Second Asset",
+        ["Gold", "Bitcoin", "NVIDIA"],
+        index=1,
+        key="rolling_asset_2"
+    )
+
+    if selected_asset_1 == selected_asset_2:
+
+        st.warning(
+            "Please select two different assets."
+        )
+
+    else:
+
+        rolling_correlation = calculate_rolling_correlation(
+            asset_returns,
+            selected_asset_1,
+            selected_asset_2,
+            window=20
+        )
+
+        st.line_chart(
+            rolling_correlation
+        )
 
 
 # --------------------------------------------------
