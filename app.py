@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from backtesting.stress_test import run_sma_stress_test
 from strategies.sma import generate_sma_signals
 from backtesting.engine import run_backtest
 from backtesting.benchmark import run_buy_and_hold
@@ -598,12 +599,200 @@ elif page == "Backtesting":
 
 elif page == "Stress Testing":
 
-    st.header("🧪 Stress Testing")
+    st.header("🧪 Strategy Stress Testing")
 
-    st.info(
-        "Stress testing dashboard will be implemented in Part 31."
+    st.markdown(
+        """
+        Test how the SMA strategy behaves when its parameters
+        and transaction costs are changed.
+        """
     )
 
+    # ----------------------------------------------
+    # Asset selection
+    # ----------------------------------------------
+
+    asset_name = st.selectbox(
+        "Select Asset",
+        ["Gold", "Bitcoin", "NVIDIA"],
+        key="stress_asset"
+    )
+
+    if asset_name == "Gold":
+        selected_df = gold.copy()
+
+    elif asset_name == "Bitcoin":
+        selected_df = bitcoin.copy()
+
+    else:
+        selected_df = nvidia.copy()
+
+    # ----------------------------------------------
+    # Stress-test parameters
+    # ----------------------------------------------
+
+    st.subheader("Stress-Test Parameters")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        short_windows = st.multiselect(
+            "Short SMA Periods",
+            [5, 10, 20, 30, 40],
+            default=[10, 20, 30]
+        )
+
+    with col2:
+        long_windows = st.multiselect(
+            "Long SMA Periods",
+            [50, 75, 100, 150, 200],
+            default=[50, 100, 150]
+        )
+
+    with col3:
+        transaction_costs = st.multiselect(
+            "Transaction Costs",
+            [0.0, 0.0005, 0.001, 0.002, 0.005],
+            default=[0.0, 0.001, 0.002]
+        )
+
+    initial_capital = st.number_input(
+        "Initial Capital",
+        min_value=1000.0,
+        value=100000.0,
+        step=1000.0,
+        key="stress_capital"
+    )
+
+    # ----------------------------------------------
+    # Validation
+    # ----------------------------------------------
+
+    if not short_windows:
+        st.warning(
+            "Select at least one short SMA period."
+        )
+
+    elif not long_windows:
+        st.warning(
+            "Select at least one long SMA period."
+        )
+
+    elif not transaction_costs:
+        st.warning(
+            "Select at least one transaction cost."
+        )
+
+    else:
+
+        # ------------------------------------------
+        # Run stress test
+        # ------------------------------------------
+
+        results = run_sma_stress_test(
+            selected_df,
+            initial_capital=initial_capital,
+            short_windows=short_windows,
+            long_windows=long_windows,
+            transaction_costs=transaction_costs
+        )
+
+        st.subheader("Stress-Test Results")
+
+        st.dataframe(
+            results,
+            use_container_width=True
+        )
+
+        # ------------------------------------------
+        # Best and worst final values
+        # ------------------------------------------
+
+        if not results.empty:
+
+            best_result = results.loc[
+                results["Final_Portfolio_Value"].idxmax()
+            ]
+
+            worst_result = results.loc[
+                results["Final_Portfolio_Value"].idxmin()
+            ]
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.metric(
+                    "Highest Final Portfolio Value",
+                    f"{best_result['Final_Portfolio_Value']:,.2f}"
+                )
+
+                st.write(
+                    f"Short SMA: {int(best_result['Short_SMA'])}"
+                )
+
+                st.write(
+                    f"Long SMA: {int(best_result['Long_SMA'])}"
+                )
+
+                st.write(
+                    f"Transaction Cost: "
+                    f"{best_result['Transaction_Cost']:.4f}"
+                )
+
+            with col2:
+
+                st.metric(
+                    "Lowest Final Portfolio Value",
+                    f"{worst_result['Final_Portfolio_Value']:,.2f}"
+                )
+
+                st.write(
+                    f"Short SMA: {int(worst_result['Short_SMA'])}"
+                )
+
+                st.write(
+                    f"Long SMA: {int(worst_result['Long_SMA'])}"
+                )
+
+                st.write(
+                    f"Transaction Cost: "
+                    f"{worst_result['Transaction_Cost']:.4f}"
+                )
+
+            # --------------------------------------
+            # Return comparison
+            # --------------------------------------
+
+        
+            st.subheader(
+                "Total Return Across Configurations"
+            )
+
+            chart_data = results.copy()
+
+            chart_data["Configuration"] = (
+                "SMA "
+                + chart_data["Short_SMA"].astype(str)
+                + " / "
+                + chart_data["Long_SMA"].astype(str)
+                + " | Cost "
+                + chart_data["Transaction_Cost"].astype(str)
+            )
+
+            chart_data = chart_data[
+            [
+                "Configuration",
+                "Total_Return"
+            ]
+        ]
+
+        chart_data = chart_data.set_index("Configuration")
+
+        st.bar_chart(
+            chart_data,
+            y="Total_Return"
+        )
 
 # --------------------------------------------------
 # AI Research Copilot
