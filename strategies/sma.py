@@ -8,26 +8,28 @@ def generate_sma_signals(
 ):
     df = df.copy()
 
-    # Calculate moving averages
-    df = calculate_sma(df, short_window)
-    df = calculate_sma(df, long_window)
+    # Calculate short SMA
+    df = calculate_sma(
+        df,
+        short_window
+    )
+
+    # Calculate long SMA
+    df = calculate_sma(
+        df,
+        long_window
+    )
 
     short_sma = f"SMA_{short_window}"
     long_sma = f"SMA_{long_window}"
 
-    # Default: no position
+    # Create signal column
     df["Signal"] = 0
 
-    # Buy / hold position
+    # Hold the asset when short SMA is above long SMA
     df.loc[
         df[short_sma] > df[long_sma],
         "Signal"
     ] = 1
-
-    # Exit / no position
-    df.loc[
-        df[short_sma] < df[long_sma],
-        "Signal"
-    ] = 0
 
     return df
