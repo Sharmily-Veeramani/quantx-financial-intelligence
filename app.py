@@ -1,5 +1,20 @@
 import streamlit as st
 import pandas as pd
+from strategies.sma import generate_sma_signals
+from backtesting.engine import run_backtest
+from backtesting.benchmark import run_buy_and_hold
+
+from analysis.performance import calculate_daily_returns
+from analysis.risk import (
+    calculate_volatility,
+    calculate_sharpe,
+    calculate_drawdown,
+    calculate_max_drawdown
+)
+
+from visualization.charts import (
+    create_equity_curve_chart
+)
 from analysis.correlation import (
     calculate_correlation,
     calculate_rolling_correlation
@@ -319,12 +334,263 @@ elif page == "Multi-Asset Analysis":
 
 elif page == "Backtesting":
 
-    st.header("🔄 Backtesting")
+    st.header("🔄 Strategy Backtesting")
 
-    st.info(
-        "Backtesting dashboard will be implemented in Part 30."
+    st.markdown(
+        """
+        Test an SMA crossover strategy using historical data
+        and compare its performance with a Buy & Hold benchmark.
+        """
     )
 
+    # ----------------------------------------------
+    # Strategy parameters
+    # ----------------------------------------------
+
+    st.subheader("Strategy Parameters")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        asset_name = st.selectbox(
+            "Select Asset",
+            ["Gold", "Bitcoin", "NVIDIA"],
+            key="backtest_asset"
+        )
+
+    with col2:
+        short_window = st.number_input(
+            "Short SMA",
+            min_value=2,
+            max_value=200,
+            value=20,
+            step=1
+        )
+
+    with col3:
+        long_window = st.number_input(
+            "Long SMA",
+            min_value=3,
+            max_value=300,
+            value=50,
+            step=1
+        )
+
+    transaction_cost = st.number_input(
+        "Transaction Cost",
+        min_value=0.0,
+        max_value=0.05,
+        value=0.001,
+        step=0.0005,
+        format="%.4f"
+    )
+
+    initial_capital = st.number_input(
+        "Initial Capital",
+        min_value=1000.0,
+        value=100000.0,
+        step=1000.0
+    )
+
+    # ----------------------------------------------
+    # Select asset
+    # ----------------------------------------------
+
+    if asset_name == "Gold":
+        selected_df = gold.copy()
+
+    elif asset_name == "Bitcoin":
+        selected_df = bitcoin.copy()
+
+    else:
+        selected_df = nvidia.copy()
+
+    # ----------------------------------------------
+    # Validate SMA periods
+    # ----------------------------------------------
+
+    if short_window >= long_window:
+
+        st.error(
+            "Short SMA must be smaller than Long SMA."
+        )
+
+    else:
+
+        # ------------------------------------------
+        # Generate strategy signals
+        # ------------------------------------------
+
+        strategy_data = generate_sma_signals(
+            selected_df,
+            short_window=short_window,
+            long_window=long_window
+        )
+
+        # ------------------------------------------
+        # Run backtest
+        # ------------------------------------------
+
+        backtest_results, trade_count = run_backtest(
+            strategy_data,
+            initial_capital=initial_capital,
+            transaction_cost=transaction_cost
+        )
+
+        # ------------------------------------------
+        # Buy & Hold benchmark
+        # ------------------------------------------
+
+        benchmark_results = run_buy_and_hold(
+            selected_df,
+            initial_capital=initial_capital,
+            transaction_cost=transaction_cost
+        )
+
+        # ------------------------------------------
+        # Combine results
+        # ------------------------------------------
+
+        backtest_results["Benchmark_Value"] = (
+            benchmark_results["Benchmark_Value"]
+        )
+
+        # ------------------------------------------
+        # Final values
+        # ------------------------------------------
+
+        strategy_final_value = (
+            backtest_results["Portfolio_Value"].iloc[-1]
+        )
+
+        benchmark_final_value = (
+            benchmark_results["Benchmark_Value"].iloc[-1]
+        )
+
+        strategy_return = (
+            strategy_final_value / initial_capital
+        ) - 1
+
+        benchmark_return = (
+            benchmark_final_value / initial_capital
+        ) - 1
+
+        # ------------------------------------------
+        # Metrics
+        # ------------------------------------------
+
+        strategy_volatility = calculate_volatility(
+            backtest_results
+        )
+
+        strategy_sharpe = calculate_sharpe(
+            backtest_results
+        )
+
+        backtest_results = calculate_drawdown(
+            backtest_results
+        )
+
+        strategy_drawdown = calculate_max_drawdown(
+            backtest_results
+        )
+
+        # ------------------------------------------
+        # Display metrics
+        # ------------------------------------------
+
+        st.subheader("Backtest Results")
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric(
+            "Strategy Final Value",
+            f"{strategy_final_value:,.2f}"
+        )
+
+        col2.metric(
+            "Strategy Return",
+            f"{strategy_return * 100:.2f}%"
+        )
+
+        col3.metric(
+            "Trade Count",
+            trade_count
+        )
+
+        col4.metric(
+            "Buy & Hold Return",
+            f"{benchmark_return * 100:.2f}%"
+        )
+
+        st.divider()
+
+        # ------------------------------------------
+        # Risk metrics
+        # ------------------------------------------
+
+        st.subheader("Strategy Risk Metrics")
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Annualized Volatility",
+            f"{strategy_volatility * 100:.2f}%"
+        )
+
+        col2.metric(
+            "Sharpe Ratio",
+            f"{strategy_sharpe:.2f}"
+        )
+
+        col3.metric(
+            "Maximum Drawdown",
+            f"{strategy_drawdown * 100:.2f}%"
+        )
+
+        st.divider()
+
+        # ------------------------------------------
+        # Equity curve
+        # ------------------------------------------
+
+        st.subheader(
+            "Strategy vs Buy & Hold"
+        )
+
+        equity_chart = create_equity_curve_chart(
+            backtest_results
+        )
+
+        st.plotly_chart(
+            equity_chart,
+            use_container_width=True
+        )
+
+        # ------------------------------------------
+        # Strategy signals
+        # ------------------------------------------
+
+        st.subheader("Trading Signals")
+
+        signal_columns = [
+            "Close",
+            f"SMA_{short_window}",
+            f"SMA_{long_window}",
+            "Signal",
+            "Position"
+        ]
+
+        available_columns = [
+            column
+            for column in signal_columns
+            if column in backtest_results.columns
+        ]
+
+        st.dataframe(
+            backtest_results[available_columns].tail(50),
+            use_container_width=True
+        )
 
 # --------------------------------------------------
 # Stress Testing
