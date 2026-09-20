@@ -1,5 +1,34 @@
 import streamlit as st
 import pandas as pd
+
+from data.loader import load_asset
+from analysis.performance import calculate_daily_returns
+from analysis.risk import (
+    calculate_volatility,
+    calculate_sharpe,
+    calculate_drawdown,
+    calculate_max_drawdown
+)
+
+from ui.styles import load_css
+from ui.components import (
+    brand,
+    hero,
+    section,
+    market_card,
+    kpi,
+    footer
+)
+
+st.set_page_config(
+    page_title="QuantX Financial Intelligence",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+load_css()
+
 from ai.analyst import explain_backtest
 from backtesting.stress_test import run_sma_stress_test
 from strategies.sma import generate_sma_signals
@@ -21,14 +50,6 @@ from analysis.correlation import (
     calculate_correlation,
     calculate_rolling_correlation
 )
-from data.loader import load_asset
-from analysis.performance import calculate_daily_returns
-from analysis.risk import (
-    calculate_volatility,
-    calculate_sharpe,
-    calculate_drawdown,
-    calculate_max_drawdown
-)
 
 from visualization.charts import (
     create_price_chart,
@@ -36,11 +57,7 @@ from visualization.charts import (
 )
 
 
-st.set_page_config(
-    page_title="QuantX Financial Intelligence",
-    page_icon="📊",
-    layout="wide"
-)
+
 
 
 # --------------------------------------------------
@@ -87,18 +104,39 @@ nvidia = prepare_asset(
 # Sidebar
 # --------------------------------------------------
 
-st.sidebar.title("Navigation")
+with st.sidebar:
 
-page = st.sidebar.radio(
-    "Go to",
-    [
-        "Overview",
-        "Multi-Asset Analysis",
-        "Backtesting",
-        "Stress Testing",
-        "AI Research Copilot"
-    ]
-)
+    brand()
+
+    st.markdown(
+        '<div class="sidebar-label">Workspace</div>',
+        unsafe_allow_html=True
+    )
+
+    page = st.radio(
+        "Workspace",
+        [
+            "Overview",
+            "Multi-Asset Analysis",
+            "Backtesting",
+            "Stress Testing",
+            "AI Research Copilot"
+        ],
+        label_visibility="collapsed"
+    )
+
+    st.markdown(
+        '<div class="sidebar-label">Assets</div>',
+        unsafe_allow_html=True
+    )
+
+    st.caption("Gold · Bitcoin · NVIDIA")
+
+    st.markdown("---")
+
+    st.caption(
+        "Quantitative research environment"
+    )
 
 
 # --------------------------------------------------
@@ -106,7 +144,11 @@ page = st.sidebar.radio(
 # --------------------------------------------------
 
 if page == "Overview":
-
+    hero(
+        "Understand the market.",
+        "Explore multi-asset price behaviour, performance, "
+        "risk and quantitative signals in one research workspace."
+    )
     st.title("📊 QuantX Financial Intelligence")
 
     st.subheader(
@@ -124,18 +166,60 @@ if page == "Overview":
 
     st.divider()
 
+
+# ==================================================
+# Market Overview Cards
+# ==================================================
+
+    section(
+        "Markets",
+        "Latest available historical observations"
+    )
+
+    gold_price = float(gold["Close"].iloc[-1])
+    btc_price = float(bitcoin["Close"].iloc[-1])
+    nvda_price = float(nvidia["Close"].iloc[-1])
+
+    gold_change = float(gold["Daily_Return"].iloc[-1] * 100)
+    btc_change = float(bitcoin["Daily_Return"].iloc[-1] * 100)
+    nvda_change = float(nvidia["Daily_Return"].iloc[-1] * 100)
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        market_card(
+            "Gold",
+            f"${gold_price:,.2f}",
+            gold_change
+        )
+    with c2:
+        market_card(
+            "Bitcoin",
+            f"${btc_price:,.2f}",
+            btc_change
+        )
+    with c3:
+        market_card(
+            "NVIDIA",
+            f"${nvda_price:,.2f}",
+            nvda_change
+        )
+
+
+
     # ----------------------------------------------
     # Asset selector
     # ----------------------------------------------
 
     asset_name = st.selectbox(
-        "Select Asset",
-        [
-            "Gold",
-            "Bitcoin",
-            "NVIDIA"
-        ]
-    )
+    "Select Asset",
+    [
+        "Gold",
+        "Bitcoin",
+        "NVIDIA"
+    ],
+    key="overview_asset_selector"
+)
 
     if asset_name == "Gold":
         selected_df = gold
@@ -435,7 +519,7 @@ elif page == "Backtesting":
 
         backtest_results, trade_count = run_backtest(
             strategy_data,
-            initial_capital=initial_capital,
+            initial_capital=initial_capital, 
             transaction_cost=transaction_cost
         )
 
@@ -445,7 +529,7 @@ elif page == "Backtesting":
 
         benchmark_results = run_buy_and_hold(
             selected_df,
-            initial_capital=initial_capital,
+            initial_capital=initial_capital, 
             transaction_cost=transaction_cost
         )
 
@@ -692,7 +776,7 @@ elif page == "Stress Testing":
 
         results = run_sma_stress_test(
             selected_df,
-            initial_capital=initial_capital,
+            initial_capital=initial_capital, # type: ignore
             short_windows=short_windows,
             long_windows=long_windows,
             transaction_costs=transaction_costs
@@ -800,7 +884,12 @@ elif page == "Stress Testing":
 # --------------------------------------------------
 
 elif page == "AI Research Copilot":
-
+    hero(
+        "Research, explained.",
+        "Turn quantitative backtest results into a clear "
+        "research narrative using Featherless AI.",
+        "AI QUANT RESEARCH COPILOT"
+    )
     st.header(" AI Quant Research Copilot")
 
     st.markdown(
