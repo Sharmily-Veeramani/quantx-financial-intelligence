@@ -1,7 +1,58 @@
 import plotly.graph_objects as go
 
+def apply_chart_style(fig):
 
+    fig.update_layout(
+
+        template="plotly_white",
+
+        paper_bgcolor="rgba(0,0,0,0)",
+
+        plot_bgcolor="rgba(0,0,0,0)",
+
+        font=dict(
+            family="Inter, Arial",
+            color="#5f6368"
+        ),
+
+        margin=dict(
+            l=10,
+            r=10,
+            t=45,
+            b=10
+        ),
+
+        hovermode="x unified",
+
+        hoverlabel=dict(
+            bgcolor="white",
+            bordercolor="#dadce0",
+            font=dict(
+                color="#202124"
+            )
+        ),
+
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            linecolor="#e8eaed"
+        ),
+
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="#f1f3f4",
+            zeroline=False,
+            linecolor="#e8eaed"
+        ),
+
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)"
+        )
+    )
+
+    return fig
 def create_price_chart(df, title="Price"):
+
     fig = go.Figure()
 
     fig.add_trace(
@@ -9,18 +60,22 @@ def create_price_chart(df, title="Price"):
             x=df.index,
             y=df["Close"],
             mode="lines",
-            name="Close Price"
+            name="Price",
+            line=dict(width=2)
         )
     )
 
     fig.update_layout(
-        title=title,
-        xaxis_title="Date",
-        yaxis_title="Price",
-        hovermode="x unified"
+        title=dict(
+            text=title,
+            font=dict(
+                size=17,
+                color="#202124"
+            )
+        )
     )
 
-    return fig
+    return apply_chart_style(fig)
 
 
 def create_indicator_chart(
